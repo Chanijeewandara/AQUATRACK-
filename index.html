@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AquaTrack - Water Management System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 320px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .dashboard-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 1000px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            font-weight: bold;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .login-btn, .exit-btn {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .login-btn:hover, .exit-btn:hover {
+            background: #5865c3;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .error-message {
+            background: #ffe8e8;
+            color: #d63031;
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .status-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.03);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        .status-on {
+            background-color: #2ed573;
+            box-shadow: 0 0 10px #2ed573;
+        }
+
+        .status-off {
+            background-color: #ff4757;
+            box-shadow: 0 0 10px #ff4757;
+        }
+
+        .solenoid-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .warning-message {
+            background: #ffe8e8;
+            color: #d63031;
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.03);
+        }
+
+        .chart-container h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #333;
+        }
+
+        .chart-container canvas {
+            max-height: 250px;
+        }
+
+        .system-note {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 10px;
+            color: #0984e3;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .last-update {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="login-container">
+        <div class="logo">
+            <h1>🌊 AquaTrack</h1>
+            <p>Smart Water Management System</p>
+        </div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit" class="login-btn">Login</button>
+            <div id="errorMessage" class="error-message hidden">
+                Invalid username or password.
+            </div>
+        </form>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboardPage" class="dashboard-container hidden">
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">🌊 AquaTrack Dashboard</h1>
+            <button id="exitBtn" class="exit-btn">Exit</button>
+        </div>
+
+        <div class="status-section">
+            <h3>Leakage Detection Status</h3>
+            <div class="solenoid-status">
+                <div id="solenoidIndicator" class="status-indicator status-off"></div>
+                <span id="solenoidText">NORMAL</span>
+            </div>
+            <div id="leakageWarning" class="warning-message hidden">
+                ⚠️ WARNING: LEAKAGE DETECTED
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h3>Real-time Flow Rate</h3>
+                <canvas id="flowRateChart" width="400" height="250"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Water Consumption</h3>
+                <canvas id="consumptionChart" width="400" height="250"></canvas>
+            </div>
+        </div>
+
+        <div class="system-note">
+            📋 <strong>Note:</strong> System inactive from 8:00 PM to 6:00 AM.
+        </div>
+
+        <div class="last-update" id="lastUpdate">Last updated: --</div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            THINGSPEAK: {
+                CHANNEL_ID: '2981979',
+                READ_API_KEY: '7RMX1WDAP41K4HC5',
+                WRITE_API_KEY: 'J3IJ6N2QHVLEM391',
+                BASE_URL: 'https://api.thingspeak.com'
+            },
+            WIFI: {
+                SSID: "peshalaWifi",
+                PASSWORD: "12345678"
+            },
+            LOGIN: {
+                USERNAME: 'admin',
+                PASSWORD: 'aquatrack123'
+            },
+            UPDATE_INTERVAL: 15000
+        };
+
+        let flowRateChart;
+        let consumptionChart;
+        let updateInterval;
+        let consumptionData = [];
+        let flowRateData = [];
+        let timeLabels = [];
+
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('errorMessage');
+
+            if (username === CONFIG.LOGIN.USERNAME && password === CONFIG.LOGIN.PASSWORD) {
+                document.getElementById('loginPage').classList.add('hidden');
+                document.getElementById('dashboardPage').classList.remove('hidden');
+                initializeDashboard();
+            } else {
+                errorMessage.classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('exitBtn').addEventListener('click', () => {
+            clearInterval(updateInterval);
+            document.getElementById('dashboardPage').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+        });
+
+        // Initialize Dashboard
+        function initializeDashboard() {
+            initializeCharts();
+            fetchThingSpeakData();
+            updateInterval = setInterval(fetchThingSpeakData, CONFIG.UPDATE_INTERVAL);
+        }
+
+        function initializeCharts() {
+            // Flow Rate Chart
+            const flowRateCtx = document.getElementById('flowRateChart').getContext('2d');
+            flowRateChart = new Chart(flowRateCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [{
+                        label: 'Flow Rate (L/min)',
+                        data: flowRateData,
+                        borderColor: '#ff6b6b',
+                        backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 50,
+                            title: { display: true, text: 'L/min' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Time' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // Consumption Chart
+            const consumptionCtx = document.getElementById('consumptionChart').getContext('2d');
+            consumptionChart = new Chart(consumptionCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [{
+                        label: 'Water Consumption (L)',
+                        data: consumptionData,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1000,
+                            title: { display: true, text: 'Liters' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Time' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        async function fetchThingSpeakData() {
+            try {
+                const url = `${CONFIG.THINGSPEAK.BASE_URL}/channels/${CONFIG.THINGSPEAK.CHANNEL_ID}/feeds.json?api_key=${CONFIG.THINGSPEAK.READ_API_KEY}&results=20`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.feeds) {
+                    processThingSpeakData(data.feeds);
+                    updateLastUpdateTime();
+                }
+            } catch (e) {
+                console.error('ThingSpeak error:', e);
+            }
+        }
+
+        function processThingSpeakData(feeds) {
+            flowRateData.length = 0;
+            consumptionData.length = 0;
+            timeLabels.length = 0;
+
+            feeds.forEach(feed => {
+                const time = new Date(feed.created_at);
+                timeLabels.push(time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+                
+                // Field 1: Flow Rate (L/min)
+                flowRateData.push(parseFloat(feed.field1) || 0);
+                
+                // Field 3: Water Consumption (L)
+                consumptionData.push(parseFloat(feed.field3) || 0);
+            });
+
+            // Update Flow Rate Chart
+            flowRateChart.data.labels = timeLabels;
+            flowRateChart.data.datasets[0].data = flowRateData;
+            flowRateChart.update();
+
+            // Update Consumption Chart
+            consumptionChart.data.labels = timeLabels;
+            consumptionChart.data.datasets[0].data = consumptionData;
+            consumptionChart.update();
+
+            // Update leakage detection status using Field 2
+            const latest = feeds[feeds.length - 1];
+            updateLeakageDetectionStatus(latest.field2);
+        }
+
+        function updateLeakageDetectionStatus(value) {
+            const indicator = document.getElementById('solenoidIndicator');
+            const text = document.getElementById('solenoidText');
+            const warning = document.getElementById('leakageWarning');
+            const isLeakageDetected = value === '1' || value === 1;
+
+            indicator.className = `status-indicator ${isLeakageDetected ? 'status-on' : 'status-off'}`;
+            text.textContent = isLeakageDetected ? 'LEAKAGE DETECTED' : 'NORMAL';
+            text.style.color = isLeakageDetected ? '#ff4757' : '#2ed573';
+            warning.classList.toggle('hidden', !isLeakageDetected);
+        }
+
+        function updateLastUpdateTime() {
+            document.getElementById('lastUpdate').textContent =
+                `Last updated: ${new Date().toLocaleString()}`;
+        }
+    </script>
+</body>
+</html>
